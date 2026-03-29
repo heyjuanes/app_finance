@@ -1,7 +1,50 @@
-// Configuración
+// Configuración - ACTUALIZAR CON TU IP REAL
 const API_URL = 'http://192.168.1.13:8000';
+
 // Estado global
 let currentTab = 'dashboard';
+let isOnline = true;
+
+// Detectar cambios de conexión
+window.addEventListener('online', () => {
+    isOnline = true;
+    removeOfflineBanner();
+    if (currentTab === 'dashboard') loadDashboard();
+    if (currentTab === 'transacciones') loadTransacciones();
+});
+
+window.addEventListener('offline', () => {
+    isOnline = false;
+    showOfflineBanner();
+    showErrorInContent('Sin conexión a internet. Verifica tu red y que la API esté corriendo.');
+});
+
+// Mostrar banner de offline
+function showOfflineBanner() {
+    if (document.getElementById('offline-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'offline-banner';
+    banner.className = 'offline-banner';
+    banner.innerHTML = '📡 Sin conexión al servidor - Verifica que la API esté corriendo';
+    const container = document.querySelector('.app-container');
+    container.insertBefore(banner, container.firstChild);
+}
+
+function removeOfflineBanner() {
+    const banner = document.getElementById('offline-banner');
+    if (banner) banner.remove();
+}
+
+// Mostrar error en el contenido
+function showErrorInContent(message) {
+    document.getElementById('dashboard-content').innerHTML = `
+        <div class="error">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <p>${message}</p>
+            <button class="retry-btn" onclick="window.location.reload()">Reintentar</button>
+        </div>
+    `;
+}
 
 // Función para formatear dinero COP
 function formatCOP(monto) {
@@ -13,20 +56,35 @@ function formatCOP(monto) {
     }).format(monto);
 }
 
-// Actualizar hora
-function updateTime() {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('current-time').textContent = timeStr;
+// Fetch con manejo de errores
+async function fetchAPI(endpoint, options = {}) {
+    if (!isOnline) {
+        throw new Error('Sin conexión a internet');
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}${endpoint}`, options);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Error en la petición');
+        }
+        return await response.json();
+    } catch (error) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            isOnline = false;
+            showOfflineBanner();
+            throw new Error('No se pudo conectar al servidor. ¿La API está corriendo?');
+        }
+        throw error;
+    }
 }
-setInterval(updateTime, 1000);
-updateTime();
 
 // Cargar Dashboard
 async function loadDashboard() {
     try {
-        const response = await fetch(`${API_URL}/dashboard`);
-        const data = await response.json();
+        const data = await fetchAPI('/dashboard');
+        removeOfflineBanner();
+        isOnline = true;
         
         const html = `
             <div class="hero-card">
@@ -108,26 +166,21 @@ async function loadDashboard() {
         document.getElementById('dashboard-content').innerHTML = html;
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        document.getElementById('dashboard-content').innerHTML = `
-            <div class="loading">
-                <p>❌ Error conectando al servidor</p>
-                <p style="font-size: 12px;">Asegúrate que la API está corriendo en ${API_URL}</p>
-            </div>
-        `;
+        showErrorInContent(error.message);
     }
 }
 
 // Cargar transacciones
 async function loadTransacciones() {
     try {
-        const response = await fetch(`${API_URL}/transacciones?limite=50`);
-        const data = await response.json();
+        const data = await fetchAPI('/transacciones?limite=50');
+        removeOfflineBanner();
         
         if (data.length === 0) {
             document.getElementById('dashboard-content').innerHTML = `
                 <div class="loading">
                     <p>📭 No hay transacciones aún</p>
-                    <p style="font-size: 12px;">Registra tu primer ingreso o gasto</p>
+                    <p style="font-size: 13px; margin-top: 8px;">Registra tu primer ingreso o gasto</p>
                 </div>
             `;
             return;
@@ -141,7 +194,7 @@ async function loadTransacciones() {
                         <div class="transaccion-desc">${t.descripcion || (t.tipo === 'ingreso' ? 'Ingreso registrado' : `Gasto de ${t.bolsillo}`)}</div>
                         <div class="transaccion-fecha">${new Date(t.fecha).toLocaleString('es-CO')}</div>
                     </div>
-                    <div class="transaccion-monto ${t.tipo === 'ingreso' ? 'transaccion-ingreso' : 'transaccion-gasto'}">
+                    <div class="transaccion-monto">
                         ${t.tipo === 'ingreso' ? '+' : '-'} ${formatCOP(t.monto)}
                     </div>
                 </div>
@@ -151,6 +204,7 @@ async function loadTransacciones() {
         document.getElementById('dashboard-content').innerHTML = html;
     } catch (error) {
         console.error('Error loading transacciones:', error);
+        showErrorInContent(error.message);
     }
 }
 
@@ -200,44 +254,31 @@ document.getElementById('transaction-form').onsubmit = async function(e) {
     
     try {
         if (transactionType === 'ingreso') {
-            const response = await fetch(`${API_URL}/ingreso`, {
+            await fetchAPI('/ingreso', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ monto, descripcion })
             });
-            
-            if (response.ok) {
-                alert('✅ Ingreso registrado exitosamente');
-            }
+            alert('✅ Ingreso registrado exitosamente');
         } else {
-            const response = await fetch(`${API_URL}/gasto`, {
+            await fetchAPI('/gasto', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ bolsillo, monto, descripcion })
             });
-            
-            if (response.ok) {
-                alert('✅ Gasto registrado exitosamente');
-            } else {
-                const error = await response.json();
-                alert(`❌ Error: ${error.detail}`);
-                return;
-            }
+            alert('✅ Gasto registrado exitosamente');
         }
         
-        // Cerrar modal y recargar
         modal.style.display = 'none';
         document.getElementById('transaction-form').reset();
         
-        // Recargar según el tab actual
         if (currentTab === 'dashboard') {
             loadDashboard();
         } else if (currentTab === 'transacciones') {
             loadTransacciones();
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('❌ Error de conexión con el servidor');
+        alert(`❌ Error: ${error.message}`);
     }
 }
 
@@ -252,28 +293,24 @@ function openCDTModal() {
     const meses = prompt('Plazo en meses:', '12');
     if (!meses) return;
     
-    fetch(`${API_URL}/cdt?capital=${parseInt(capital)}&tasa=${parseFloat(tasa)}&meses=${parseInt(meses)}`, {
+    fetchAPI(`/cdt?capital=${parseInt(capital)}&tasa=${parseFloat(tasa)}&meses=${parseInt(meses)}`, {
         method: 'POST'
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(() => {
         alert(`✅ CDT creado exitosamente\nCapital: ${formatCOP(parseInt(capital))}\nTasa: ${tasa}% E.A.\nPlazo: ${meses} meses`);
         loadDashboard();
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('❌ Error al crear CDT');
+        alert(`❌ Error: ${error.message}`);
     });
 }
 
 // Navegación por tabs
 document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', async () => {
-        // Actualizar UI de tabs
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         
-        // Cargar contenido según tab
         const tabName = tab.dataset.tab;
         currentTab = tabName;
         
@@ -285,7 +322,7 @@ document.querySelectorAll('.tab').forEach(tab => {
             document.getElementById('dashboard-content').innerHTML = `
                 <div class="loading">
                     <p>🏦 Sección de CDT</p>
-                    <p style="font-size: 12px;">Presiona el botón ⊕ para crear un nuevo CDT</p>
+                    <p style="font-size: 13px; margin-top: 8px;">Presiona el botón ⊕ para crear un nuevo CDT</p>
                 </div>
                 <div class="action-row">
                     <div class="action-btn" onclick="openCDTModal()">
@@ -298,7 +335,7 @@ document.querySelectorAll('.tab').forEach(tab => {
             document.getElementById('dashboard-content').innerHTML = `
                 <div class="loading">
                     <p>⚙️ Configuración</p>
-                    <p style="font-size: 12px;">Próximamente: editar meta, porcentajes, etc.</p>
+                    <p style="font-size: 13px; margin-top: 8px;">Próximamente: editar meta, porcentajes y más</p>
                 </div>
             `;
         }

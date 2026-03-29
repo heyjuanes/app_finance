@@ -6,52 +6,44 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Mi Migración">
-    <link rel="apple-touch-icon" href="https://via.placeholder.com/192x192?text=💰">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%235b5ef4'/%3E%3Ctext x='50' y='67' font-size='50' text-anchor='middle' fill='white'%3E💰%3C/text%3E%3C/svg%3E">
     <link rel="manifest" href="manifest.json">
     <title>Sistema Financiero Migratorio</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="phone-wrap">
-        <div class="iphone">
-            <div class="notch"></div>
-            <div class="screen">
-                <div class="status-bar">
-                    <span id="current-time">09:41</span>
-                    <span>🇨🇴 COP</span>
-                </div>
+    <div class="app-container">
+        <div class="status-bar">
+            <span></span>
+        </div>
 
-                <div class="content" id="dashboard-content">
-                    <!-- El contenido se carga dinámicamente con JavaScript -->
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Cargando tu viaje financiero...</p>
-                    </div>
-                </div>
+        <div class="content" id="dashboard-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Cargando tu viaje financiero...</p>
+            </div>
+        </div>
 
-                <div class="tab-bar">
-                    <div class="tab active" data-tab="dashboard">
-                        <div class="tab-icon">📊</div>
-                        <div class="tab-lbl">panel</div>
-                    </div>
-                    <div class="tab" data-tab="transacciones">
-                        <div class="tab-icon">📜</div>
-                        <div class="tab-lbl">historial</div>
-                    </div>
-                    <div class="tab" data-tab="cdt">
-                        <div class="tab-icon">🏦</div>
-                        <div class="tab-lbl">cdt</div>
-                    </div>
-                    <div class="tab" data-tab="config">
-                        <div class="tab-icon">⚙️</div>
-                        <div class="tab-lbl">config</div>
-                    </div>
-                </div>
+        <div class="tab-bar">
+            <div class="tab active" data-tab="dashboard">
+                <div class="tab-icon">📊</div>
+                <div class="tab-lbl">panel</div>
+            </div>
+            <div class="tab" data-tab="transacciones">
+                <div class="tab-icon">📜</div>
+                <div class="tab-lbl">historial</div>
+            </div>
+            <div class="tab" data-tab="cdt">
+                <div class="tab-icon">🏦</div>
+                <div class="tab-lbl">cdt</div>
+            </div>
+            <div class="tab" data-tab="config">
+                <div class="tab-icon">⚙️</div>
+                <div class="tab-lbl">config</div>
             </div>
         </div>
     </div>
 
-    <!-- Modal para registrar ingreso/gasto -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
