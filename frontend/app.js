@@ -1,31 +1,90 @@
 // Configuración - ACTUALIZAR CON TU IP REAL
-const API_URL = 'http://192.168.1.13:8000';
+const API_URL = 'https://app-finance-nwr5.onrender.com';
 
 // Estado global
 let currentTab = 'dashboard';
 let isOnline = true;
+let connectionCheckInterval = null;
 
 // Detectar cambios de conexión
 window.addEventListener('online', () => {
     isOnline = true;
     removeOfflineBanner();
-    if (currentTab === 'dashboard') loadDashboard();
-    if (currentTab === 'transacciones') loadTransacciones();
+    checkAPIHealth();
 });
 
 window.addEventListener('offline', () => {
     isOnline = false;
-    showOfflineBanner();
-    showErrorInContent('Sin conexión a internet. Verifica tu red y que la API esté corriendo.');
+    showOfflineBanner('Sin conexión a internet');
+    showErrorInContent('📡 Sin conexión a internet. Verifica tu red WiFi.');
 });
 
-// Mostrar banner de offline
-function showOfflineBanner() {
+// Verificar salud de la API cada 10 segundos
+function startHealthCheck() {
+    if (connectionCheckInterval) clearInterval(connectionCheckInterval);
+    connectionCheckInterval = setInterval(async () => {
+        if (!navigator.onLine) return;
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const response = await fetch(`${API_URL}/dashboard`, {
+                method: 'HEAD',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) throw new Error('API no responde');
+            
+            // Si estaba en error, recargar
+            if (!isOnline) {
+                isOnline = true;
+                removeOfflineBanner();
+                if (currentTab === 'dashboard') loadDashboard();
+                if (currentTab === 'transacciones') loadTransacciones();
+            }
+        } catch (error) {
+            if (isOnline) {
+                isOnline = false;
+                showOfflineBanner('⚠️ El servidor se detuvo. Reinicia la API en tu PC.');
+                showErrorInContent('⚠️ El servidor no está respondiendo.\n\nVerifica que la API esté corriendo en tu PC:\nuv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000');
+            }
+        }
+    }, 10000);
+}
+
+// Verificar API al inicio
+async function checkAPIHealth() {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const response = await fetch(`${API_URL}/dashboard`, {
+            method: 'HEAD',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            isOnline = true;
+            removeOfflineBanner();
+            return true;
+        }
+        throw new Error('API no disponible');
+    } catch (error) {
+        isOnline = false;
+        showOfflineBanner('⚠️ Servidor no disponible');
+        showErrorInContent('⚠️ El servidor no está respondiendo.\n\nVerifica que la API esté corriendo en tu PC:\n\n1. Abre una terminal\n2. cd C:\\Users\\Shoto\\app_finance\n3. uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000');
+        return false;
+    }
+}
+
+// Mostrar banner de offline con mensaje personalizado
+function showOfflineBanner(message) {
     if (document.getElementById('offline-banner')) return;
     const banner = document.createElement('div');
     banner.id = 'offline-banner';
     banner.className = 'offline-banner';
-    banner.innerHTML = '📡 Sin conexión al servidor - Verifica que la API esté corriendo';
+    banner.innerHTML = `🔌 ${message}`;
     const container = document.querySelector('.app-container');
     container.insertBefore(banner, container.firstChild);
 }
@@ -38,9 +97,9 @@ function removeOfflineBanner() {
 // Mostrar error en el contenido
 function showErrorInContent(message) {
     document.getElementById('dashboard-content').innerHTML = `
-        <div class="error">
-            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
-            <p>${message}</p>
+        <div class="error" style="text-align: center; padding: 40px 20px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+            <p style="margin-bottom: 20px; line-height: 1.5; white-space: pre-line;">${message}</p>
             <button class="retry-btn" onclick="window.location.reload()">Reintentar</button>
         </div>
     `;
@@ -56,23 +115,30 @@ function formatCOP(monto) {
     }).format(monto);
 }
 
-// Fetch con manejo de errores
+// Fetch con manejo de errores mejorado
 async function fetchAPI(endpoint, options = {}) {
-    if (!isOnline) {
+    if (!navigator.onLine) {
         throw new Error('Sin conexión a internet');
     }
     
     try {
-        const response = await fetch(`${API_URL}${endpoint}`, options);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const fetchOptions = { ...options, signal: controller.signal };
+        
+        const response = await fetch(`${API_URL}${endpoint}`, fetchOptions);
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
-            const error = await response.json();
+            const error = await response.json().catch(() => ({ detail: 'Error en la petición' }));
             throw new Error(error.detail || 'Error en la petición');
         }
         return await response.json();
     } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Tiempo de espera agotado. El servidor no responde.');
+        }
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            isOnline = false;
-            showOfflineBanner();
             throw new Error('No se pudo conectar al servidor. ¿La API está corriendo?');
         }
         throw error;
@@ -166,7 +232,7 @@ async function loadDashboard() {
         document.getElementById('dashboard-content').innerHTML = html;
     } catch (error) {
         console.error('Error loading dashboard:', error);
-        showErrorInContent(error.message);
+        showErrorInContent(`❌ ${error.message}\n\n¿La API está corriendo?\n\nEjecuta en tu PC:\nuv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`);
     }
 }
 
@@ -204,7 +270,7 @@ async function loadTransacciones() {
         document.getElementById('dashboard-content').innerHTML = html;
     } catch (error) {
         console.error('Error loading transacciones:', error);
-        showErrorInContent(error.message);
+        showErrorInContent(`❌ ${error.message}\n\nNo se pudieron cargar las transacciones.`);
     }
 }
 
@@ -343,4 +409,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 
 // Inicializar
-loadDashboard();
+checkAPIHealth().then(() => {
+    loadDashboard();
+    startHealthCheck();
+});
