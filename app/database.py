@@ -105,9 +105,14 @@ def cargar_estado():
         cursor.execute("SELECT valor FROM config WHERE clave = 'meta_total'")
         meta = int(cursor.fetchone()["valor"])
         
-        # Cargar último ingreso
+        # Cargar último ingreso - CORREGIDO
         cursor.execute("SELECT valor FROM config WHERE clave = 'ultimo_ingreso_mensual'")
-        ultimo_ingreso = int(cursor.fetchone()["valor"])
+        ultimo_valor = cursor.fetchone()
+        if ultimo_valor and ultimo_valor["valor"]:
+            # Convertir a float primero, luego a int
+            ultimo_ingreso = int(float(ultimo_valor["valor"]))
+        else:
+            ultimo_ingreso = 0
         
         return {
             "bolsillos": bolsillos,
@@ -140,11 +145,17 @@ def actualizar_config(clave, valor):
     """Actualiza un valor de configuración"""
     with get_db() as conn:
         cursor = conn.cursor()
+        # Guardar como string pero asegurar formato correcto
+        if isinstance(valor, (int, float)):
+            valor_str = str(int(valor))  # Convertir a entero sin decimales
+        else:
+            valor_str = str(valor)
+        
         cursor.execute("""
             UPDATE config 
             SET valor = ?, updated_at = CURRENT_TIMESTAMP
             WHERE clave = ?
-        """, (str(valor), clave))
+        """, (valor_str, clave))
         conn.commit()
 
 def obtener_historial(limite=50):

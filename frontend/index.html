@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mi Migración">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192x192?text=💰">
+    <link rel="manifest" href="manifest.json">
+    <title>Sistema Financiero Migratorio</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="phone-wrap">
+        <div class="iphone">
+            <div class="notch"></div>
+            <div class="screen">
+                <div class="status-bar">
+                    <span id="current-time">09:41</span>
+                    <span>🇨🇴 COP</span>
+                </div>
+
+                <div class="content" id="dashboard-content">
+                    <!-- El contenido se carga dinámicamente con JavaScript -->
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Cargando tu viaje financiero...</p>
+                    </div>
+                </div>
+
+                <div class="tab-bar">
+                    <div class="tab active" data-tab="dashboard">
+                        <div class="tab-icon">📊</div>
+                        <div class="tab-lbl">panel</div>
+                    </div>
+                    <div class="tab" data-tab="transacciones">
+                        <div class="tab-icon">📜</div>
+                        <div class="tab-lbl">historial</div>
+                    </div>
+                    <div class="tab" data-tab="cdt">
+                        <div class="tab-icon">🏦</div>
+                        <div class="tab-lbl">cdt</div>
+                    </div>
+                    <div class="tab" data-tab="config">
+                        <div class="tab-icon">⚙️</div>
+                        <div class="tab-lbl">config</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para registrar ingreso/gasto -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3 id="modal-title">Registrar Ingreso</h3>
+            <form id="transaction-form">
+                <input type="number" id="monto" placeholder="Monto en COP" required>
+                <select id="bolsillo" style="display: none;">
+                    <option value="migracion">Migración</option>
+                    <option value="vida_diaria">Vida Diaria</option>
+                    <option value="liquidez">Liquidez</option>
+                    <option value="disfrute">Disfrute</option>
+                </select>
+                <input type="text" id="descripcion" placeholder="Descripción (opcional)">
+                <button type="submit">Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

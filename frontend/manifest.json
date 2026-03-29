@@ -1,0 +1,22 @@
+{
+    "name": "Sistema Financiero Migratorio",
+    "short_name": "MiMigración",
+    "description": "Planificación financiera para tu migración internacional",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0f",
+    "theme_color": "#5b5ef4",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "https://via.placeholder.com/192x192?text=💰",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://via.placeholder.com/512x512?text=💰",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
