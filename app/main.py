@@ -19,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ruta raíz
 @app.get("/")
 async def root():
     return {
@@ -31,29 +30,25 @@ async def root():
 
 @app.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard():
-    \"\"\"Obtiene el estado completo del dashboard\"\"\"
+    "Obtiene el estado completo del dashboard"
     estado = database.cargar_estado()
     
     fondo_actual = database.obtener_fondo_migratorio()
     meta_total = estado["meta_total"]
     
-    # Calcular semáforo
     semaforo_info = semaforo.obtener_semaforo(fondo_actual, meta_total)
     
-    # Obtener bolsillos formateados
     bolsillos_data = [
         {"nombre": nombre.capitalize(), "monto": monto, "porcentaje": 35 if nombre == "migracion" else 50 if nombre == "vida_diaria" else 10 if nombre == "liquidez" else 5}
         for nombre, monto in estado["bolsillos"].items()
     ]
     
-    # Calcular tasa de ahorro (70% del bolsillo migración)
     tasa_ahorro = estado["bolsillos"].get("migracion", 0) * 0.7
     if tasa_ahorro <= 0:
         tasa_ahorro = 500_000
     
     proyecciones = proyeccion.generar_escenarios(fondo_actual, meta_total, tasa_ahorro)
     
-    # Obtener CDT activo
     with database.get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -68,7 +63,6 @@ async def get_dashboard():
     else:
         cdt_info = {"capital": 0, "tasa": 0, "meses": 0, "interes_proyectado": 0, "monto_final": 0}
     
-    # Calcular días restantes
     meses_actual = proyecciones.get("actual", 0)
     dias_restantes = round(meses_actual * 30) if isinstance(meses_actual, (int, float)) else 0
     
@@ -85,14 +79,12 @@ async def get_dashboard():
 
 @app.post("/ingreso")
 async def registrar_ingreso(ingreso: IngresoRequest):
-    \"\"\"Registra un ingreso y lo distribuye automáticamente\"\"\"
+    "Registra un ingreso y lo distribuye automáticamente"
     if ingreso.monto <= 0:
         raise HTTPException(status_code=400, detail="El monto debe ser mayor a cero")
     
-    # Distribuir ingreso
     distribucion = bolsillos.distribuir_ingreso(ingreso.monto)
     
-    # Actualizar cada bolsillo en la base de datos
     with database.get_db() as conn:
         cursor = conn.cursor()
         for bolsillo, monto in distribucion.items():
@@ -102,7 +94,6 @@ async def registrar_ingreso(ingreso: IngresoRequest):
                 WHERE nombre = ?
             """, (monto, bolsillo))
         
-        # Actualizar último ingreso mensual en config
         cursor.execute("""
             UPDATE config 
             SET valor = ?, updated_at = CURRENT_TIMESTAMP
@@ -110,7 +101,6 @@ async def registrar_ingreso(ingreso: IngresoRequest):
         """, (str(ingreso.monto),))
         conn.commit()
     
-    # Registrar transacción
     database.guardar_transaccion(
         tipo="ingreso",
         monto=ingreso.monto,
@@ -121,11 +111,10 @@ async def registrar_ingreso(ingreso: IngresoRequest):
 
 @app.post("/gasto")
 async def registrar_gasto(gasto: GastoRequest):
-    \"\"\"Registra un gasto descontando del bolsillo correspondiente\"\"\"
+    "Registra un gasto descontando del bolsillo correspondiente"
     if gasto.monto <= 0:
         raise HTTPException(status_code=400, detail="El monto debe ser mayor a cero")
     
-    # Verificar fondos suficientes
     with database.get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT monto FROM bolsillos WHERE nombre = ?", (gasto.bolsillo,))
@@ -137,7 +126,6 @@ async def registrar_gasto(gasto: GastoRequest):
         if resultado["monto"] < gasto.monto:
             raise HTTPException(status_code=400, detail="Fondos insuficientes en el bolsillo")
         
-        # Realizar descuento
         cursor.execute("""
             UPDATE bolsillos 
             SET monto = monto - ?, updated_at = CURRENT_TIMESTAMP
@@ -145,7 +133,6 @@ async def registrar_gasto(gasto: GastoRequest):
         """, (gasto.monto, gasto.bolsillo))
         conn.commit()
     
-    # Registrar transacción
     database.guardar_transaccion(
         tipo="gasto",
         bolsillo=gasto.bolsillo,
@@ -157,12 +144,12 @@ async def registrar_gasto(gasto: GastoRequest):
 
 @app.get("/transacciones", response_model=list[TransaccionResponse])
 async def get_transacciones(limite: int = 50):
-    \"\"\"Obtiene el historial de transacciones\"\"\"
+    "Obtiene el historial de transacciones"
     return database.obtener_historial(limite)
 
 @app.post("/cdt")
 async def crear_cdt(capital: int, tasa: float, meses: int = 12):
-    \"\"\"Registra un nuevo CDT\"\"\"
+    "Registra un nuevo CDT"
     if capital <= 0 or tasa <= 0:
         raise HTTPException(status_code=400, detail="Capital y tasa deben ser positivos")
     
