@@ -3,9 +3,12 @@ from contextlib import contextmanager
 import json
 from datetime import datetime
 from pathlib import Path
+import os
+from pathlib import Path
 
-# Ruta de la base de datos
-DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
+# Usar una ruta que funcione en Render
+BASE_DIR = Path(__file__).parent.parent
+DB_PATH = os.environ.get('DATABASE_PATH', BASE_DIR / "data" / "finanzas.db")
 
 @contextmanager
 def get_db():
