@@ -1,0 +1,20 @@
+[project]
+name = "app-finance"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.135.2",
+    "httpx>=0.28.1",
+    "pydantic>=2.12.5",
+    "python-multipart>=0.0.22",
+    "uvicorn>=0.42.0",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.1",
+    "pytest>=9.0.2",
+    "ruff>=0.15.8",
+]
