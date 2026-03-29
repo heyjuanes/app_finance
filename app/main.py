@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+﻿from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -19,9 +19,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Ruta raíz
+@app.get("/")
+async def root():
+    return {
+        "message": "Sistema Financiero Migratorio API",
+        "version": "1.0.0",
+        "status": "online",
+        "docs": "/docs"
+    }
+
 @app.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard():
-    """Obtiene el estado completo del dashboard"""
+    \"\"\"Obtiene el estado completo del dashboard\"\"\"
     estado = database.cargar_estado()
     
     fondo_actual = database.obtener_fondo_migratorio()
@@ -75,7 +85,7 @@ async def get_dashboard():
 
 @app.post("/ingreso")
 async def registrar_ingreso(ingreso: IngresoRequest):
-    """Registra un ingreso y lo distribuye automáticamente"""
+    \"\"\"Registra un ingreso y lo distribuye automáticamente\"\"\"
     if ingreso.monto <= 0:
         raise HTTPException(status_code=400, detail="El monto debe ser mayor a cero")
     
@@ -111,7 +121,7 @@ async def registrar_ingreso(ingreso: IngresoRequest):
 
 @app.post("/gasto")
 async def registrar_gasto(gasto: GastoRequest):
-    """Registra un gasto descontando del bolsillo correspondiente"""
+    \"\"\"Registra un gasto descontando del bolsillo correspondiente\"\"\"
     if gasto.monto <= 0:
         raise HTTPException(status_code=400, detail="El monto debe ser mayor a cero")
     
@@ -147,12 +157,12 @@ async def registrar_gasto(gasto: GastoRequest):
 
 @app.get("/transacciones", response_model=list[TransaccionResponse])
 async def get_transacciones(limite: int = 50):
-    """Obtiene el historial de transacciones"""
+    \"\"\"Obtiene el historial de transacciones\"\"\"
     return database.obtener_historial(limite)
 
 @app.post("/cdt")
 async def crear_cdt(capital: int, tasa: float, meses: int = 12):
-    """Registra un nuevo CDT"""
+    \"\"\"Registra un nuevo CDT\"\"\"
     if capital <= 0 or tasa <= 0:
         raise HTTPException(status_code=400, detail="Capital y tasa deben ser positivos")
     
