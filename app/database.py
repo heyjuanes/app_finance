@@ -1,20 +1,28 @@
 import sqlite3
 from contextlib import contextmanager
-import json
 from datetime import datetime
 from pathlib import Path
 import os
-from pathlib import Path
 
-# Usar una ruta que funcione en Render
-BASE_DIR = Path(__file__).parent.parent
-DB_PATH = os.environ.get('DATABASE_PATH', BASE_DIR / "data" / "finanzas.db")
+# Detectar si estamos en Render (entorno de producción)
+IS_RENDER = os.environ.get('RENDER', False)
+
+if IS_RENDER:
+    # En Render, usar /tmp (único directorio escribible)
+    DB_PATH = Path("/tmp/finanzas.db")
+else:
+    # En desarrollo local
+    DB_PATH = Path(__file__).parent.parent / "data" / "finanzas.db"
+
+# Asegurar que el directorio existe (solo en local)
+if not IS_RENDER:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 @contextmanager
 def get_db():
     """Context manager para manejar la conexión a la base de datos"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Para acceder por nombre de columna
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
@@ -25,7 +33,7 @@ def init_db():
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Tabla de bolsillos (estado actual)
+        # Tabla de bolsillos
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bolsillos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,19 +44,19 @@ def init_db():
             )
         """)
         
-        # Tabla de transacciones (historial)
+        # Tabla de transacciones
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS transacciones (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tipo TEXT NOT NULL,  -- 'ingreso' o 'gasto'
-                bolsillo TEXT,       -- solo para gastos
+                tipo TEXT NOT NULL,
+                bolsillo TEXT,
                 monto INTEGER NOT NULL,
                 descripcion TEXT,
                 fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
-        # Tabla de configuración (meta, etc.)
+        # Tabla de configuración
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS config (
                 clave TEXT PRIMARY KEY,
@@ -68,7 +76,7 @@ def init_db():
             )
         """)
         
-        # Insertar bolsillos por defecto si no existen
+        # Insertar datos por defecto
         bolsillos_default = [
             ("migracion", 0, 35),
             ("vida_diaria", 0, 50),
@@ -82,7 +90,6 @@ def init_db():
                 VALUES (?, ?, ?)
             """, (nombre, monto, porcentaje))
         
-        # Insertar configuración por defecto
         cursor.execute("""
             INSERT OR IGNORE INTO config (clave, valor)
             VALUES (?, ?)
@@ -100,19 +107,15 @@ def cargar_estado():
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Cargar bolsillos
         cursor.execute("SELECT nombre, monto FROM bolsillos")
         bolsillos = {row["nombre"]: row["monto"] for row in cursor.fetchall()}
         
-        # Cargar meta
         cursor.execute("SELECT valor FROM config WHERE clave = 'meta_total'")
         meta = int(cursor.fetchone()["valor"])
         
-        # Cargar último ingreso - CORREGIDO
         cursor.execute("SELECT valor FROM config WHERE clave = 'ultimo_ingreso_mensual'")
         ultimo_valor = cursor.fetchone()
         if ultimo_valor and ultimo_valor["valor"]:
-            # Convertir a float primero, luego a int
             ultimo_ingreso = int(float(ultimo_valor["valor"]))
         else:
             ultimo_ingreso = 0
@@ -148,9 +151,8 @@ def actualizar_config(clave, valor):
     """Actualiza un valor de configuración"""
     with get_db() as conn:
         cursor = conn.cursor()
-        # Guardar como string pero asegurar formato correcto
         if isinstance(valor, (int, float)):
-            valor_str = str(int(valor))  # Convertir a entero sin decimales
+            valor_str = str(int(valor))
         else:
             valor_str = str(valor)
         
@@ -177,11 +179,9 @@ def obtener_fondo_migratorio():
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Obtener migración
         cursor.execute("SELECT monto FROM bolsillos WHERE nombre = 'migracion'")
         migracion = cursor.fetchone()["monto"]
         
-        # Obtener CDT activo (el más reciente)
         cursor.execute("""
             SELECT capital FROM cdt 
             ORDER BY fecha_inicio DESC 
